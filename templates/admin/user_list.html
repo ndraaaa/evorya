@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% block title %}Data Pemilih{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'admin/partials/page_header.html' with header="Data Pemilih" %}
+    
+    <div class="card border rounded shadow-sm overflow-hidden">
+        <div class="border-bottom px-4 py-4">
+            <div class="row gy-2 gx-3 align-items-center">
+                <div class="col-12 col-md">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                        <input type="text" id="search-input" class="form-control border-start-0" placeholder="Cari..." value="{{ search_query }}">
+                    </div>
+                </div>
+                <div class="col-6 col-md-auto">
+                    <select id="angkatanSelect" class="form-select w-100">
+                        <option value="">Semua Angkatan</option>
+                        {% for angkatan in angkatan_list %}
+                        <option value="{{ angkatan }}" {% if selected_angkatan == angkatan %}selected{% endif %}>{{ angkatan }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-3 col-md-auto">
+                    <button class="btn btn-primary w-100 d-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#userModal" data-mode="add">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span class="d-none d-sm-inline ms-1">Tambah</span>
+                    </button>
+                </div>
+                <div class="col-3 col-md-auto">
+                    <form action="{% url 'admin:import_user' %}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+                        {% csrf_token %}
+                        <label class="btn btn-success mb-0 d-flex align-items-center w-100 justify-content-center px-2">
+                            <i class="bi bi-file-earmark-arrow-up-fill"></i>
+                            <span class="d-none d-md-inline ms-1">Import</span>
+                            <input type="file" name="file" accept=".csv,.xlsx" class="d-none" onchange="this.form.submit()">
+                        </label>
+                    </form>
+                </div>
+            </div>
+        </div>
+    
+        <div id="user-table">
+            {% include 'admin/partials/user_table.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah/Edit User -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form method="POST" enctype="multipart/form-data" id="userForm">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalLabel">Tambah Pengguna Baru</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <input type="hidden" name="mode" id="formMode" value="add">
+                        <div class="col-md-6">
+                            <label for="nimInput" class="form-label ">NIM <small id="readonlyHint" class="form-text text-muted" style="display: none;">NIM tidak dapat diubah (readonly)</small></label>
+                            <input type="text" class="form-control" name="nim" id="nimInput" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="emailInput" class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" id="emailInput" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="firstNameInput" class="form-label">Nama Depan</label>
+                            <input type="text" class="form-control" name="first_name" id="firstNameInput" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="lastNameInput" class="form-label">Nama Belakang</label>
+                            <input type="text" class="form-control" name="last_name" id="lastNameInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="prodiSelect" class="form-label">Program Studi</label>
+                            <select class="form-select" name="prodi" id="prodiSelect" required>
+                                <option value="" disabled selected>-- Pilih Prodi --</option>
+                                {% for prodi in prodis %}
+                                <option value="{{ prodi.id }}">{{ prodi.nama }} - {{ prodi.fakultas.nama }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="isActiveWrapper" style="display: none;">
+                            <label class="form-label d-block">Status Akun</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="isActiveCheckbox">
+                                <label class="form-check-label" for="isActiveCheckbox">Aktif</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="roleSelect" class="form-label">Role</label>
+                            <select class="form-select" name="role" id="roleSelect" required>
+                                <option value="voter">Voter</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <input type="hidden" name="password" id="passwordInput">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+  
+<script>
+    let debounceTimeout;
+    const searchInput = document.getElementById('search-input');
+    const angkatanSelect = document.getElementById('angkatanSelect');
+
+    function applyFilter() {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+            const query = searchInput.value;
+            const angkatan = angkatanSelect.value;
+            const url = new URL(window.location.href);
+            url.searchParams.set('q', query);
+            if (angkatan) {
+                url.searchParams.set('angkatan', angkatan);
+            } else {
+                url.searchParams.delete('angkatan');
+            }
+
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(res => res.text())
+                .then(html => {
+                    document.getElementById('user-table').innerHTML = html;
+                });
+        }, 300);
+    }
+
+    searchInput.addEventListener('keyup', applyFilter);
+    angkatanSelect.addEventListener('change', applyFilter);
+
+    const userModal = document.getElementById('userModal');
+        userModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const mode = button.getAttribute('data-mode') || 'add';
+            const form = document.getElementById('userForm');
+
+            document.getElementById('formMode').value = mode;
+
+            const isActiveWrapper = document.getElementById('isActiveWrapper');
+            const isActiveCheckbox = document.getElementById('isActiveCheckbox');
+            const nimInput = document.getElementById('nimInput');
+
+            if (mode === 'edit') {
+                const user = JSON.parse(button.getAttribute('data-user'));
+                document.getElementById('userModalLabel').innerText = 'Edit Pengguna';
+                form.action = "{% url 'admin:edit_user' %}";
+
+                nimInput.value = user.nim;
+                nimInput.readOnly = true;
+                readonlyHint.style.display = 'block';
+
+                document.getElementById('emailInput').value = user.email;
+                document.getElementById('firstNameInput').value = user.first_name;
+                document.getElementById('lastNameInput').value = user.last_name;
+                document.getElementById('prodiSelect').value = user.prodi_id;
+                document.getElementById('roleSelect').value = user.role;
+
+                isActiveWrapper.style.display = 'block';
+                isActiveCheckbox.checked = user.is_active;
+
+            } else {
+                document.getElementById('userModalLabel').innerText = 'Tambah Pengguna Baru';
+                form.action = "{% url 'admin:add_user' %}";
+                form.reset();
+                nimInput.readOnly = false;
+                readonlyHint.style.display = 'none';
+                isActiveWrapper.style.display = 'none';
+                isActiveCheckbox.checked = false;
+            }
+        });
+
+
+    document.getElementById('userForm').addEventListener('submit', function (e) {
+        const mode = document.getElementById('formMode').value;
+        const nim = document.getElementById('nimInput').value;
+        if (mode === 'add') {
+            document.getElementById('passwordInput').value = nim;
+        }
+    });
+</script>
+{% endblock %}

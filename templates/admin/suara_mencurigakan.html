@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+    {% include 'admin/partials/page_header.html' with header="Log Kecurangan Voting" %}
+
+    <a href="{% url 'admin:export_suara_mencurigakan_csv' %}" class="btn btn-danger mb-3 me-3"><i class="bi bi-download me-1"></i> Ekspor Data Mencurigakan</a>
+    <a href="{% url 'admin:export_all' %}" class="btn btn-success mb-3"><i class="bi bi-download me-2"></i>Export Semua Data</a>
+
+    {% if suara_mencurigakan %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped mt-3">
+            <thead class="table-dark">
+                <tr>
+                    <th>No.</th>
+                    <th>Pemilihan</th>
+                    <th>Nama Pemilih</th>
+                    <th>NIM</th>
+                    <th>Kandidat</th>
+                    <th>IP Address</th>
+                    <th>User Agent</th>
+                    <th>Waktu Vote</th>
+                    <th>Alasan Kecurigaan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for suara in suara_mencurigakan %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ suara.pemilihan.nama }}</td>
+                    <td>{{ suara.pemilih.full_name }}</td>
+                    <td>{{ suara.pemilih.nim }}</td>
+                    <td>{{ suara.kandidat.ketua.full_name }}</td>
+                    <td>{{ suara.ip_address }}</td>
+                    <td>{{ suara.user_agent|truncatechars:50 }}</td>
+                    <td>{{ suara.waktu|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ suara.alasan_kecurangan }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-4">Belum ada aktivitas mencurigakan.</div>
+    {% endif %}
+</div>
+{% endblock %}

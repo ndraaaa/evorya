@@ -1,0 +1,11 @@
+<header class="d-flex align-items-baseline mb-4">
+    <h3 class="me-3 pe-3 text-dark fw-semibold">{{ header }}</h3>
+</header>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert m-0">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}

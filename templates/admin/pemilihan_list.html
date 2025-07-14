@@ -1,0 +1,651 @@
+{% extends 'base.html' %}
+{% block title %}Manajemen Pemilihan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'admin/partials/page_header.html' with header="Manajemen Pemilihan" %}
+
+    <div class="text-end mb-3">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pemilihanModal" data-mode="add">
+            <i class="bi bi-plus-circle me-1"></i> Tambah Pemilihan
+        </button>
+    </div>
+
+    <div class="row g-3">
+        {% for pemilihan in daftar_pemilihan %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body"
+                data-id="{{ pemilihan.id }}"
+                data-status="{{ pemilihan.status }}"
+                data-start="{{ pemilihan.waktu_mulai|date:'Y-m-d\\TH:i:s' }}"
+                data-end="{{ pemilihan.waktu_selesai|date:'Y-m-d\\TH:i:s' }}">
+                    <div class="d-flex justify-content-between align-items-start toggle-card" data-bs-toggle="collapse" data-bs-target="#detail-{{ pemilihan.id }}" aria-expanded="false" style="cursor: pointer;">
+                        <div>
+                            <h6 class="card-title mb-1 d-flex flex-wrap justify-content-start align-items-center gap-1">
+                                <span>{{ pemilihan.nama }}</span>
+                                <small class="text-muted" id="countdown-{{ pemilihan.id }}"></small>
+                            </h6>                                                    
+                            <p class="text-muted small mb-0">{{ pemilihan.deskripsi|default:'-' }}</p>
+                        </div>
+                        <div class="text-end">
+                            <span
+                                class="badge mb-2 {% if pemilihan.status == 'Berlangsung' %}bg-success{% elif pemilihan.status == 'Akan Datang' %}bg-secondary{% else %}bg-danger{% endif %}">
+                                {{ pemilihan.status|title }}
+                            </span><br>
+                            <i class="bi bi-chevron-down toggle-icon me-3" id="icon-{{ pemilihan.id }}"></i>
+                        </div>
+                    </div>
+    
+                    {% with open_id=request.GET.open %}
+                    <div class="collapse mt-3 {% if pemilihan.id|stringformat:'s' == open_id %}show{% endif %}" id="detail-{{ pemilihan.id }}">
+                        <hr>
+                        <p class="text-muted small mb-2">
+                            {{ pemilihan.waktu_mulai|date:"l, d F Y" }} ({{ pemilihan.waktu_mulai|date:"H:i" }}) -
+                            {{ pemilihan.waktu_selesai|date:"l, d F Y" }} ({{ pemilihan.waktu_selesai|date:"H:i" }})
+                        </p>
+                        <div class="d-flex justify-content-start">
+                            <small class="text-muted me-3">Jumlah Kandidat:</small>
+                            <strong>{{ pemilihan.kandidat_list.count }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-start">
+                            <small class="text-muted me-3">Jumlah Pemilih:</small>
+                            <strong>{{ pemilihan.jumlah_pemilih }}</strong>
+                        </div>
+
+                        <h6 class="mt-3">Daftar Kandidat</h6>
+                        <div class="row">
+                            {% for kandidat in pemilihan.get_kandidat_terurut %}
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body d-flex align-items-center gap-3">
+                                        <!-- Foto -->
+                                        <img src="{{ kandidat.foto_url }}" alt="Foto Kandidat" class="img-thumbnail"
+                                            style="width: 80px; height: 80px; object-fit: cover;">
+                        
+                                        <!-- Info Kandidat -->
+                                        <div class="flex-grow-1">
+                                            <strong>{{ kandidat.nomor_urut }}. {{ kandidat.ketua.get_full_name }}{% if kandidat.wakil %} - {{ kandidat.wakil.get_full_name }}{% endif %}</strong><br>
+                                            <small>NIM Ketua: {{ kandidat.ketua.nim }}</small><br>
+                                            {% if kandidat.wakil %}
+                                            <small>NIM Wakil: {{ kandidat.wakil.nim }}</small>
+                                            {% endif %}
+                                        </div>
+                        
+                                        <!-- Tombol Aksi -->
+                                        <div class="text-end">
+                                            <!-- Tombol Detail -->
+                                            <button type="button" class="btn btn-link text-info p-0 mb-1" data-bs-toggle="modal"
+                                                data-bs-target="#detailKandidatModal-{{ kandidat.id }}" title="Detail">
+                                                <i class="bi bi-eye"></i>
+                                            </button><br>
+                                        
+                                            <!-- Tombol Edit -->
+                                            <button type="button" class="btn btn-link text-warning p-0 mb-1" title="Edit" data-bs-toggle="modal"
+                                                data-bs-target="#kandidatModal-{{ pemilihan.id }}" data-mode="edit" data-kandidat='{
+                                                    "id": "{{ kandidat.id }}",
+                                                    "ketua": "{{ kandidat.ketua.nim }}",
+                                                    "wakil": "{{ kandidat.wakil.nim|default:"" }}",
+                                                    "nomor_urut": "{{ kandidat.nomor_urut }}",
+                                                    "visi": "{{ kandidat.visi|escapejs }}",
+                                                    "misi": "{{ kandidat.misi|escapejs }}",
+                                                    "proker": "{{ kandidat.proker|escapejs }}"
+                                                }'>
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button><br>
+                                        
+                                            <!-- Tombol Hapus -->
+                                            <form method="post" action="{% url 'admin:delete_kandidat' pemilihan.id kandidat.id %}?open={{ pemilihan.id }}"
+                                                style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-link text-danger p-0"
+                                                    onclick="return confirm('Yakin ingin menghapus kandidat ini?')" title="Hapus">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal Detail Kandidat -->
+                                <div class="modal fade" id="detailKandidatModal-{{ kandidat.id }}" tabindex="-1"
+                                    aria-labelledby="detailKandidatLabel-{{ kandidat.id }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-xl modal-dialog-centered">
+                                        <div class="modal-content border-0 shadow-sm">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="detailKandidatLabel-{{ kandidat.id }}">Detail Kandidat</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <!-- Bagian Atas: Foto dan Informasi Umum -->
+                                                <div class="row">
+                                                    <!-- Foto -->
+                                                    <div class="col-md-4 text-center">
+                                                        <img src="{{ kandidat.foto_url }}" alt="Foto Kandidat" class="img-fluid rounded"
+                                                            style="aspect-ratio: 1 / 1; object-fit: cover; width: 100%;">
+                                                    </div>
+                                
+                                                    <!-- Informasi Umum -->
+                                                    <div class="col-md-8 mt-3">
+                                                        <div class="mb-2">
+                                                            <strong>Nomor Urut:</strong> {{ kandidat.nomor_urut }}
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <strong>Ketua:</strong> {{ kandidat.ketua.get_full_name }} ({{ kandidat.ketua.nim }})
+                                                            <br>
+                                                            <small><i>
+                                                                    Program Studi {{ kandidat.ketua.prodi }}
+                                                                    {% if kandidat.ketua.fakultas %}
+                                                                    - {{ kandidat.ketua.fakultas }}
+                                                                    {% endif %}
+                                                                </i></small>                                                            
+                                                        </div>
+                                                        {% if kandidat.wakil %}
+                                                        <div class="mb-2">
+                                                            <strong>Wakil:</strong> {{ kandidat.wakil.get_full_name }} ({{ kandidat.wakil.nim }})
+                                                            <br>
+                                                            <small><i>
+                                                                    Program Studi {{ kandidat.wakil.prodi }}
+                                                                    {% if kandidat.wakil.fakultas %}
+                                                                    - {{ kandidat.wakil.fakultas }}
+                                                                    {% endif %}
+                                                                </i></small>                                                            
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                
+                                                <hr class="my-4">
+                                
+                                                <!-- Bagian Bawah: Visi Misi dan Proker -->
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <h6><strong>Visi</strong></h6>
+                                                        <p>{{ kandidat.visi|linebreaks }}</p>
+                                                        <h6 class="mt-4"><strong>Misi</strong></h6>
+                                                        <p>{{ kandidat.misi|linebreaks }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <h6><strong>Program Kerja</strong></h6>
+                                                        <p>{{ kandidat.proker|linebreaks }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>  
+                            </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <p class="text-muted">Belum ada kandidat.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mt-3 d-flex justify-content-end gap-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                                data-bs-target="#aturPemilihModal-{{ pemilihan.id }}">
+                                <i class="bi bi-person-check"></i> Atur Pemilih
+                            </button>
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#kandidatModal-{{ pemilihan.id }}">
+                                <i class="bi bi-person-plus"></i> Kandidat
+                            </button>
+                            <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#pemilihanModal" data-mode="edit"
+                                data-pemilihan='{
+                                                    "id": "{{ pemilihan.id }}",
+                                                    "nama": "{{ pemilihan.nama }}",
+                                                    "deskripsi": "{{ pemilihan.deskripsi }}",
+                                                    "waktu_mulai": "{{ pemilihan.waktu_mulai|date:'Y-m-d\\TH:i' }}",
+                                                    "waktu_selesai": "{{ pemilihan.waktu_selesai|date:'Y-m-d\\TH:i' }}"
+                                                }'>
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <a href="{% url 'admin:delete_pemilihan' pemilihan.id %}" class="btn btn-sm btn-danger"
+                                onclick="return confirm('Yakin ingin menghapus pemilihan ini?')">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>                        
+                    </div>
+                    {% endwith %}
+                </div>
+            </div>
+
+            <!-- Modal Tambah/Edit Kandidat -->
+            <div class="modal fade" id="kandidatModal-{{ pemilihan.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form method="post" enctype="multipart/form-data" id="kandidatForm-{{ pemilihan.id }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="kandidat_id" id="kandidatId-{{ pemilihan.id }}">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="kandidatModalTitle-{{ pemilihan.id }}">Tambah Kandidat</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <!-- Fields -->
+                                <div class="mb-3">
+                                    <label class="form-label">NIM Ketua</label>
+                                    <input type="text" name="ketua" class="form-control kandidat-ketua" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">NIM Wakil (Opsional)</label>
+                                    <input type="text" name="wakil" class="form-control kandidat-wakil">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Nomor Urut</label>
+                                    <input type="number" name="nomor_urut" class="form-control kandidat-nomor" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Visi</label>
+                                    <textarea name="visi" class="form-control kandidat-visi" required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Misi</label>
+                                    <textarea name="misi" class="form-control kandidat-misi" required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Program Kerja</label>
+                                    <textarea name="proker" class="form-control kandidat-proker" required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Foto Kandidat</label>
+                                    <input type="file" name="foto" class="form-control">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                <button class="btn btn-primary" type="submit">Simpan</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Modal Atur Pemilih -->
+            <div class="modal fade" id="aturPemilihModal-{{ pemilihan.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <form method="post" action="{% url 'admin:atur_pemilih' pemilihan.id %}">
+                            {% csrf_token %}
+                            <div class="modal-header">
+                                <h5 class="modal-title">Atur Pemilih - <strong>{{ pemilihan.nama }}</strong></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                            </div>
+            
+                            <div class="modal-body">
+                                <!-- Filter -->
+                                <div class="row g-2 mb-3 align-items-center">
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control search-input" placeholder="Cari NIM / Nama / Prodi / Fakultas..."
+                                            data-pemilihan-id="{{ pemilihan.id }}" id="searchInput-{{ pemilihan.id }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select class="form-select angkatan-select" data-pemilihan-id="{{ pemilihan.id }}"
+                                            id="angkatanSelect-{{ pemilihan.id }}">
+                                            <option value="">Semua Angkatan</option>
+                                            {% for angkatan in angkatan_list %}
+                                            <option value="{{ angkatan }}">20{{ angkatan }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-check d-flex align-items-center gap-2">
+                                            <input type="checkbox" class="form-check-input select-all-checkbox" id="selectAllCheckbox-{{ pemilihan.id }}"
+                                                data-pemilihan-id="{{ pemilihan.id }}">
+                                            <label class="form-check-label mb-0" for="selectAllCheckbox-{{ pemilihan.id }}">
+                                                Pilih Semua
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            
+                                <hr>
+                                <div style="max-height: 400px; overflow-y: auto;">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle table-bordered small mb-0">
+                                            <thead class="table-light sticky-top bg-white" style="top: 0; z-index: 1;">
+                                                <tr>
+                                                    <th scope="col" class="text-center" style="width: 50px;">Pilih</th>
+                                                    <th scope="col">NIM</th>
+                                                    <th scope="col">Nama</th>
+                                                    <th scope="col">Prodi</th>
+                                                    <th scope="col">Fakultas</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for mahasiswa in semua_mahasiswa %}
+                                                <tr class="pemilih-item-{{ pemilihan.id }}" data-nama="{{ mahasiswa.get_full_name|lower }}"
+                                                    data-nim="{{ mahasiswa.nim }}" data-angkatan="{{ mahasiswa.nim|slice:':2' }}"
+                                                    data-prodi="{{ mahasiswa.prodi.nama|lower }}"
+                                                    data-fakultas="{{ mahasiswa.prodi.fakultas.nama|lower }}">
+                                                    <td class="text-center">
+                                                        <input class="form-check-input" type="checkbox" name="pemilih" value="{{ mahasiswa.nim }}"
+                                                            {% if mahasiswa in pemilihan.pemilih.all %}checked{% endif %}>
+                                                    </td>
+                                                    <td>{{ mahasiswa.nim }}</td>
+                                                    <td>{{ mahasiswa.get_full_name }}</td>
+                                                    <td>{{ mahasiswa.prodi.nama }}</td>
+                                                    <td>{{ mahasiswa.prodi.fakultas.nama }}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="5" class="text-muted text-center">Tidak ada data mahasiswa.</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>                            
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Simpan</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-warning text-center p-5 border-0 shadow-sm">Belum ada data pemilihan yang tersedia.
+            </div>
+        </div>
+        {% endfor %}
+    </div>    
+</div>
+
+<!-- Modal Pemilihan (Tambah & Edit) -->
+<div class="modal fade" id="pemilihanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'admin:add_pemilihan' %}" id="pemilihanForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Tambah Pemilihan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="pemilihanId">
+                    <div class="mb-3">
+                        <label for="nama" class="form-label">Nama Pemilihan</label>
+                        <input type="text" class="form-control" name="nama" id="nama" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deskripsi" class="form-label">Deskripsi</label>
+                        <textarea class="form-control" name="deskripsi" id="deskripsi"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="waktu_mulai" class="form-label">Tanggal Mulai</label>
+                        <input type="datetime-local" class="form-control" name="waktu_mulai" id="waktu_mulai" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="waktu_selesai" class="form-label">Tanggal Selesai</label>
+                        <input type="datetime-local" class="form-control" name="waktu_selesai" id="waktu_selesai"
+                            required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const pemilihanModal = document.getElementById('pemilihanModal');
+    pemilihanModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const mode = button.getAttribute('data-mode');
+        const form = document.getElementById('pemilihanForm');
+        const modalTitle = pemilihanModal.querySelector('.modal-title');
+
+        if (mode === 'edit') {
+            const data = JSON.parse(button.getAttribute('data-pemilihan'));
+            form.action = "{% url 'admin:edit_pemilihan' %}";
+            modalTitle.textContent = 'Edit Pemilihan';
+            document.getElementById('pemilihanId').value = data.id;
+            document.getElementById('nama').value = data.nama;
+            document.getElementById('deskripsi').value = data.deskripsi;
+            document.getElementById('waktu_mulai').value = data.waktu_mulai;
+            document.getElementById('waktu_selesai').value = data.waktu_selesai;
+        } else {
+            form.action = "{% url 'admin:add_pemilihan' %}";
+            modalTitle.textContent = 'Tambah Pemilihan';
+            form.reset();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const cards = document.querySelectorAll('.toggle-card');
+
+        cards.forEach(card => {
+            const collapseId = card.getAttribute('data-bs-target');
+            const collapseEl = document.querySelector(collapseId);
+            const iconEl = card.querySelector('.toggle-icon');
+
+            // Cegah toggle saat klik tombol edit/hapus
+            card.querySelectorAll('button, a').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+            });
+
+            // Ganti ikon saat collapse show/hide
+            collapseEl.addEventListener('show.bs.collapse', () => {
+                iconEl.classList.remove('bi-chevron-down');
+                iconEl.classList.add('bi-chevron-up');
+            });
+
+            collapseEl.addEventListener('hide.bs.collapse', () => {
+                iconEl.classList.remove('bi-chevron-up');
+                iconEl.classList.add('bi-chevron-down');
+            });
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.card-body[data-id]').forEach(function (card) {
+            const id = card.dataset.id;
+            const status = card.dataset.status;
+            const start = new Date(card.dataset.start);
+            const end = new Date(card.dataset.end);
+            const countdownEl = document.getElementById('countdown-' + id);
+
+            function formatCountdown(diffMs) {
+                const totalSec = Math.floor(diffMs / 1000);
+                const days = Math.floor(totalSec / (3600 * 24));
+                const hours = Math.floor((totalSec % (3600 * 24)) / 3600);
+                const minutes = Math.floor((totalSec % 3600) / 60);
+                return `${days}h ${hours}j ${minutes}m`;
+            }
+
+            if (status === 'Akan Datang') {
+                function updateStartCountdown() {
+                    const now = new Date();
+                    const diff = start - now;
+                    if (diff > 0) {
+                        countdownEl.textContent = `• Berlangsung dalam ${formatCountdown(diff)}`;
+                    } else {
+                        countdownEl.textContent = `• Menunggu dimulai`;
+                    }
+                }
+                updateStartCountdown();
+                setInterval(updateStartCountdown, 60000);
+
+            } else if (status === 'Berlangsung') {
+                function updateEndCountdown() {
+                    const now = new Date();
+                    const diff = end - now;
+                    if (diff > 0) {
+                        countdownEl.textContent = `• Selesai dalam ${formatCountdown(diff)}`;
+                    } else {
+                        countdownEl.textContent = `• Menyelesaikan...`;
+                    }
+                }
+                updateEndCountdown();
+                setInterval(updateEndCountdown, 60000);
+
+            } else if (status === 'Selesai') {
+                const now = new Date();
+                const daysAgo = Math.floor((now - end) / (1000 * 60 * 60 * 24));
+                countdownEl.textContent = `• Telah selesai dari ${daysAgo} hari`;
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const params = new URLSearchParams(window.location.search);
+        const openId = params.get("open");
+        if (openId) {
+            const element = document.getElementById("detail-" + openId);
+            if (element) {
+                element.scrollIntoView({ behavior: "smooth" });
+            }
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const kandidatModals = document.querySelectorAll('[id^="kandidatModal-"]');
+
+        kandidatModals.forEach(function (modalEl) {
+            modalEl.addEventListener("show.bs.modal", function (event) {
+                const button = event.relatedTarget;
+                const form = modalEl.querySelector("form");
+                const title = modalEl.querySelector(".modal-title");
+                const mode = button.getAttribute("data-mode");
+
+                const pemilihanId = modalEl.id.split("-")[1];
+                const actionBase = "/admin-evorya/pemilihan/" + pemilihanId + "/kandidat/";
+
+                if (mode === "edit") {
+                    const data = JSON.parse(button.getAttribute("data-kandidat"));
+
+                    form.action = actionBase + data.id + "/edit/";
+                    title.textContent = "Edit Kandidat";
+
+                    modalEl.querySelector(".kandidat-ketua").value = data.ketua;
+                    modalEl.querySelector(".kandidat-wakil").value = data.wakil || "";
+                    modalEl.querySelector(".kandidat-nomor").value = data.nomor_urut;
+                    modalEl.querySelector(".kandidat-visi").value = data.visi;
+                    modalEl.querySelector(".kandidat-misi").value = data.misi;
+                    modalEl.querySelector(".kandidat-proker").value = data.proker;
+                } else {
+                    form.action = actionBase;
+                    title.textContent = "Tambah Kandidat";
+                    form.reset();
+                }
+            });
+        });
+    });
+
+    function filterPemilih(pemilihanId) {
+        const search = document.getElementById(`searchInput-${pemilihanId}`).value.toLowerCase();
+        const angkatan = document.getElementById(`angkatanSelect-${pemilihanId}`).value;
+        const items = document.querySelectorAll(`.pemilih-item-${pemilihanId}`);
+
+        items.forEach(item => {
+            const nama = item.dataset.nama;
+            const nim = item.dataset.nim;
+            const angkatanItem = item.dataset.angkatan;
+            const prodi = item.dataset.prodi;
+            const fakultas = item.dataset.fakultas;
+
+            const matchesSearch =
+                nama.includes(search) ||
+                nim.includes(search) ||
+                prodi.includes(search) ||
+                fakultas.includes(search);
+
+            const matchesAngkatan = !angkatan || nim.startsWith(angkatan);
+
+            item.style.display = (matchesSearch && matchesAngkatan) ? '' : 'none';
+        });
+
+        updateSelectAllCheckbox(pemilihanId);
+    }
+
+    function toggleSelectAll(pemilihanId) {
+        const isChecked = document.getElementById(`selectAllCheckbox-${pemilihanId}`).checked;
+        const items = document.querySelectorAll(`.pemilih-item-${pemilihanId}`);
+
+        items.forEach(item => {
+            if (item.style.display !== 'none') {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                checkbox.checked = isChecked;
+            }
+        });
+    }
+
+    function updateSelectAllCheckbox(pemilihanId) {
+        const selectAllCheckbox = document.getElementById(`selectAllCheckbox-${pemilihanId}`);
+        const items = document.querySelectorAll(`.pemilih-item-${pemilihanId}`);
+        let allChecked = true;
+        let anyVisible = false;
+
+        items.forEach(item => {
+            if (item.style.display !== 'none') {
+                anyVisible = true;
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (!checkbox.checked) {
+                    allChecked = false;
+                }
+            }
+        });
+
+        if (!anyVisible) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (allChecked) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Input search
+        document.querySelectorAll('.search-input').forEach(input => {
+            input.addEventListener('keyup', function () {
+                const pemilihanId = this.dataset.pemilihanId;
+                filterPemilih(pemilihanId);
+            });
+        });
+
+        // Dropdown angkatan
+        document.querySelectorAll('.angkatan-select').forEach(select => {
+            select.addEventListener('change', function () {
+                const pemilihanId = this.dataset.pemilihanId;
+                filterPemilih(pemilihanId);
+            });
+        });
+
+        // Checkbox "Pilih Semua"
+        document.querySelectorAll('.select-all-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const pemilihanId = this.dataset.pemilihanId;
+                toggleSelectAll(pemilihanId);
+            });
+        });
+
+        // Checkbox individual per mahasiswa
+        const allCheckboxes = document.querySelectorAll('[class^="pemilih-item-"] input[type="checkbox"]');
+        allCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const container = checkbox.closest('[class^="pemilih-item-"]');
+                const classList = Array.from(container.classList);
+                const idMatch = classList.find(cls => cls.startsWith('pemilih-item-'));
+                if (idMatch) {
+                    const pemilihanId = idMatch.replace('pemilih-item-', '');
+                    updateSelectAllCheckbox(pemilihanId);
+                }
+            });
+        });
+    });
+</script>
+
+{% endblock %}

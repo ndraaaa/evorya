@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Vote - {{ pemilihan.nama }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h4 class="mb-3">Pemilihan: <strong>{{ pemilihan.nama }}</strong></h4>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Deskripsi:</strong><br>{{ pemilihan.deskripsi|default:"(Tidak ada deskripsi)" }}</p>
+            <p><strong>Periode:</strong><br>
+                {{ pemilihan.waktu_mulai|date:"d M Y H:i" }} - {{ pemilihan.waktu_selesai|date:"d M Y H:i" }}
+            </p>
+        </div>
+    </div>
+
+    <form method="POST" action="{% url 'voters:submit_vote' pemilihan.id %}" onsubmit="return confirmVote();">
+        {% csrf_token %}
+
+        <div class="row row-cols-1 row-cols-md-2 g-4 mb-4">
+            {% for kandidat in kandidat_list %}
+            <div class="col">
+                <label class="card h-100 p-3 border-2 border-hover position-relative">
+                    <div class="d-flex flex-column flex-md-row align-items-start gap-3">
+                        <input type="radio" name="kandidat" value="{{ kandidat.id }}" class="form-check-input mt-1"
+                            required>
+                        <div class="w-100">
+                            <h5 class="card-title mb-2">No. Urut {{ kandidat.nomor_urut }}</h5>
+                            <div class="d-flex flex-column flex-sm-row align-items-start gap-3 mb-2">
+                                <img src="{{ kandidat.foto_url }}" alt="Foto Kandidat"
+                                    class="img-fluid rounded shadow-sm border"
+                                    style="width: 150px; height: 150px; object-fit: cover;">
+                                <div class="small text-break">
+                                    <strong>Ketua:</strong> {{ kandidat.ketua.full_name }} ({{ kandidat.ketua.nim }})<br>
+                                    {{ kandidat.ketua.prodi.nama }} - {{ kandidat.ketua.prodi.fakultas.nama }}<br>
+                                    {% if kandidat.wakil %}
+                                    <strong>Wakil:</strong> {{ kandidat.wakil.full_name }} ({{ kandidat.wakil.nim }})<br>
+                                    {{ kandidat.wakil.prodi.nama }} - {{ kandidat.wakil.prodi.fakultas.nama }}
+                                    {% else %}
+                                    <span class="badge bg-secondary">Tanpa Wakil</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            </p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <hr>
+
+        <div class="mb-3">
+            <label for="token" class="form-label">Masukkan Token</label>
+            <input type="text" name="token" id="token" class="form-control" placeholder="Masukkan token voting Anda" required>
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %} {% endif %}
+            <div class="form-text">Token hanya bisa digunakan satu kali untuk pemilihan ini.</div>
+        </div>
+
+        <div class="mb-3 d-flex flex-column flex-sm-row justify-content-between align-items-stretch gap-2">
+            <button type="button" class="btn btn-outline-secondary w-100" id="sendTokenBtn">
+                <i class="bi bi-envelope">Kirim Token ke Email</i> 
+            </button>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-circle">Kirim Suara</i> 
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmVote() {
+        return confirm("Apakah Anda yakin dengan pilihan Anda?");
+    }
+
+    document.getElementById('sendTokenBtn').addEventListener('click', function () {
+        fetch("{% url 'voters:send_token' pemilihan.id %}")
+            .then(response => {
+                if (response.ok) {
+                    alert('Token telah dikirim ke email Anda.');
+                } else {
+                    alert('Gagal mengirim token.');
+                }
+            })
+            .catch(() => alert('Terjadi kesalahan saat mengirim token.'));
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (token) {
+            document.getElementById('token').value = token;
+        }
+    });
+</script>
+
+{% endblock %}

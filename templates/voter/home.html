@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load mathfilters %}
+{% block title %}E-Voting Pemira UNJAYA{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <header class="d-flex align-items-baseline mb-4">
+        <h4 class="me-3 pe-3 text-muted">Selamat Datang Di Evorya, <strong class="text-dark">{{ user.full_name }} ({{ user.nim }})</strong></h4>
+    </header>
+    
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert m-0">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% for status, daftar in grouped_pemilihan %}
+    {% if daftar %}
+    <h5 class="mt-4 mb-2">Pemilihan {{ status }}</h5> <hr>
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        {% for item in daftar %}
+        <div class="col">
+            <div class="card shadow-sm border-none">
+                <div class="card-body" data-id="{{ item.pemilihan.id }}" 
+                data-status="{{ item.status }}" 
+                data-start="{{ item.pemilihan.waktu_mulai|date:'Y-m-d H:i:s' }}" 
+                data-end="{{ item.pemilihan.waktu_selesai|date:'Y-m-d H:i:s' }}">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <h6 class="card-title mb-0">{{ item.pemilihan.nama }}</h6>
+                        {% if item.status == 'Berlangsung' and not item.sudah_memilih %}
+                        <span class="badge text-bg-warning align-items-start py-1 px-2 small">Belum Memilih</span>
+                        {% elif item.status == 'Berlangsung' %}
+                        <span class="badge text-bg-success align-items-start py-1 px-2 small">Sudah Memilih</span>
+                        {% elif item.status == 'Akan Datang' %}
+                        <span class="badge text-bg-secondary align-items-start py-1 px-2 small">Akan Datang</span>
+                        {% elif item.status == 'Selesai' %}
+                        <span class="badge text-bg-danger align-items-start py-1 px-2 small">Selesai</span>
+                        {% endif %}
+                    </div>
+                    <p class="card-text small text-muted">{{ item.pemilihan.deskripsi|default:"(Tidak ada deskripsi)" }}</p>
+                    <p class="card-text mb-1"><strong>Periode Pemilihan:</strong><br>
+                        {{ item.pemilihan.waktu_mulai|date:"l, d M Y" }} - {{ item.pemilihan.waktu_selesai|date:"l, d M Y" }}
+                        <small class="text-muted" id="countdown-{{ item.pemilihan.id }}">{{ item.keterangan_waktu }}</small>
+                    </p>
+                    <div class="d-flex justify-content-between mt-3 gap-2 flex-wrap">
+                        {% if item.status == 'Berlangsung' and not item.sudah_memilih %}
+                        <a href="{% url 'voters:vote_page' item.pemilihan.id %}" class="btn btn-primary flex-fill">
+                            <i class="bi bi-check-circle me-1"></i> Vote
+                        </a>
+                        {% endif %}
+                    
+                        {% if item.status in 'Berlangsung Selesai' %}
+                        <button class="btn btn-secondary flex-fill" data-bs-toggle="modal"
+                            data-bs-target="#modalResult{{ item.pemilihan.id }}">
+                            <i class="bi bi-bar-chart-line me-1"></i> Result
+                        </button>
+                        {% endif %}
+                    
+                        <!-- Tombol Detail Modal -->
+                        <button class="btn btn-info text-white flex-fill" data-bs-toggle="modal"
+                            data-bs-target="#modalDetail{{ item.pemilihan.id }}">
+                            <i class="bi bi-info-circle me-1"></i> Details
+                        </button>
+                    </div>                                                         
+                </div>
+            </div>
+
+            <!-- Modal Detail Pemilihan -->
+            <div class="modal fade" id="modalDetail{{ item.pemilihan.id }}" tabindex="-1"
+                aria-labelledby="modalLabel{{ item.pemilihan.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalLabel{{ item.pemilihan.id }}">Detail Pemilihan: {{ item.pemilihan.nama }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Periode:</strong><br>
+                                {{ item.pemilihan.waktu_mulai|date:"l, d M Y" }} - {{ item.pemilihan.waktu_selesai|date:"l, d M Y" }}
+                            </p>
+            
+                            <p><strong>Deskripsi:</strong><br>
+                                {{ item.pemilihan.deskripsi|default:"(Tidak ada deskripsi)" }}
+                            </p>
+            
+                            <hr class="my-3">
+            
+                            <h6 class="mb-3">Daftar Kandidat:</h6>
+                            <div class="row g-4">
+                                {% for kandidat in item.pemilihan.kandidat_list.all %}
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="d-flex flex-column flex-md-row align-items-start mb-3">
+                                            <img src="{{ kandidat.foto_url }}" alt="Foto Kandidat" class="rounded me-md-3 mb-3 mb-md-0 border shadow-sm"
+                                                style="width: 200px; height: 200px; object-fit: cover;">
+                                            <div>
+                                                <strong>No. Urut {{ kandidat.nomor_urut }}</strong><br>
+                                                <small class="text-muted">Ketua:</small><br>
+                                                <span><strong>{{ kandidat.ketua.full_name }} ({{ kandidat.ketua.nim }})</strong></span><br>
+                                                <small>Prodi {{ kandidat.ketua.prodi.nama }} <br> {{ kandidat.ketua.prodi.fakultas.nama }}</small><br>
+                                                {% if kandidat.wakil %}
+                                                <hr class="my-2">
+                                                <small class="text-muted">Wakil:</small><br>
+                                                <span><strong>{{ kandidat.wakil.full_name }}</strong> ({{ kandidat.wakil.nim }})</span><br>
+                                                <small>Prodi {{ kandidat.wakil.prodi.nama }} <br> {{ kandidat.wakil.prodi.fakultas.nama }}</small><br>
+                                                {% else %}
+                                                <span class="badge bg-secondary mt-2">Tanpa Wakil</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <p><strong>Visi:</strong><br>{{ kandidat.visi|linebreaks }}</p>
+                                        <p><strong>Misi:</strong><br>{{ kandidat.misi|linebreaks }}</p>
+                                        <p><strong>Program Kerja:</strong><br>{{ kandidat.proker|linebreaks }}</p>
+                                    </div>
+                                </div>                                
+                                {% empty %}
+                                <div class="col-12"><em class="text-muted">Belum ada kandidat.</em></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                            {% if item.status == 'Berlangsung' and not item.sudah_memilih %}
+                            <a href="{% url 'voters:vote_page' item.pemilihan.id %}" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Vote
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Hasil Pemilihan -->
+            <div class="modal fade" id="modalResult{{ item.pemilihan.id }}" tabindex="-1"
+                aria-labelledby="modalResultLabel{{ item.pemilihan.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalResultLabel{{ item.pemilihan.id }}">
+                                Hasil Pemilihan: {{ item.pemilihan.nama }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Total Suara Masuk:</strong> {{ item.total_suara }}</p>
+                            <p><strong>Total Pemilih Terdaftar:</strong> {{ item.pemilihan.pemilih.count }}</p>
+                            <p><strong>Partisipasi:</strong>
+                                {% if item.pemilihan.pemilih.count > 0 %}
+                                {{ item.total_suara }} / {{ item.pemilihan.pemilih.count }} =
+                                {{ item.total_suara|mul:100|div:item.pemilihan.pemilih.count|floatformat:2 }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </p>                                                       
+                            <hr>
+            
+                            {% if item.total_suara > 0 %}
+                            <canvas id="chartResult{{ item.pemilihan.id }}" style="max-height: 300px;" class="chart-bar"
+                                data-labels='[{% for suara in item.kandidat_suara %}"{{ suara.kandidat.nomor_urut }}. {{ suara.kandidat.ketua.full_name|escapejs }}{% if suara.kandidat.wakil %} & {{ suara.kandidat.wakil.full_name|escapejs }}{% endif %}" {% if not forloop.last %}, {% endif %}{% endfor %}]'
+                                data-data='[{% for suara in item.kandidat_suara %}{{ suara.jumlah_suara }}{% if not forloop.last %}, {% endif %}{% endfor %}]'></canvas>
+                            {% else %}
+                            <p class="text-muted">Belum ada suara yang masuk.</p>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% if total_pemilihan == 0 %}
+    <div class="alert alert-info mt-4" role="alert">
+        Belum ada pemilihan yang tersedia saat ini.
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.card-body[data-id]').forEach(function (card) {
+            const id = card.dataset.id;
+            const status = card.dataset.status;
+            const start = new Date(card.dataset.start);
+            const end = new Date(card.dataset.end);
+            const countdownEl = document.getElementById('countdown-' + id);
+
+            function formatCountdown(diffMs) {
+                const totalSec = Math.floor(diffMs / 1000);
+                const days = Math.floor(totalSec / (3600 * 24));
+                const hours = Math.floor((totalSec % (3600 * 24)) / 3600);
+                const minutes = Math.floor((totalSec % 3600) / 60);
+                return `${days}h ${hours}j ${minutes}m`;
+            }
+
+            if (status === 'Akan Datang') {
+                function updateStartCountdown() {
+                    const now = new Date();
+                    const diff = start - now;
+                    if (diff > 0) {
+                        countdownEl.textContent = `• Berlangsung dalam ${formatCountdown(diff)}`;
+                    } else {
+                        countdownEl.textContent = `• Menunggu dimulai`;
+                    }
+                }
+                updateStartCountdown();
+                setInterval(updateStartCountdown, 60000);
+
+            } else if (status === 'Berlangsung') {
+                function updateEndCountdown() {
+                    const now = new Date();
+                    const diff = end - now;
+                    if (diff > 0) {
+                        countdownEl.textContent = `• Selesai dalam ${formatCountdown(diff)}`;
+                    } else {
+                        countdownEl.textContent = `• Menyelesaikan...`;
+                    }
+                }
+                updateEndCountdown();
+                setInterval(updateEndCountdown, 60000);
+
+            } else if (status === 'Selesai') {
+                const now = new Date();
+                const daysAgo = Math.floor((now - end) / (1000 * 60 * 60 * 24));
+                countdownEl.textContent = `• Telah selesai dari ${daysAgo} hari`;
+            }
+        });
+    });
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const renderedCharts = {};
+
+        document.querySelectorAll(".modal").forEach(function (modal) {
+            modal.addEventListener("shown.bs.modal", function () {
+                const canvas = modal.querySelector(".chart-bar");
+                if (!canvas || renderedCharts[canvas.id]) return;
+
+                try {
+                    const ctx = canvas.getContext("2d");
+                    const labels = JSON.parse(canvas.dataset.labels.replace(/'/g, '"'));
+                    const data = JSON.parse(canvas.dataset.data);
+
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: data,
+                                backgroundColor: [
+                                    '#000000', '#6c757d', '#adb5bd', '#ced4da', '#dee2e6',
+                                    '#ff6384', '#36a2eb', '#ffce56', '#28a745', '#fd7e14'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            animation: {
+                                duration: 1000, // 1 second animation
+                                easing: 'easeOutBounce' // optional easing
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            const label = context.label || '';
+                                            const value = context.raw;
+                                            return `${label}: ${value} suara`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    renderedCharts[canvas.id] = true;
+
+                } catch (err) {
+                    console.error("Gagal memuat chart:", err);
+                }
+            });
+        });
+    });
+</script>
+
+{% if rekomendasi_ganti_password %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(() => {
+            if (confirm("Anda masih menggunakan password default (NIM). Demi keamanan, disarankan untuk mengganti password. Ingin ubah sekarang?")) {
+                window.location.href = "{% url 'main:user_profile_with_password_prompt' user.nim %}";
+            }
+        }, 300);
+    });
+</script>
+{% endif %}
+{% endblock %}

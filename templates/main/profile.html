@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}Profil Saya{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'admin/partials/page_header.html' with header="Profile Saya" %}
+
+    <!-- Kartu Profil -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4 d-flex flex-column flex-md-row align-items-center gap-4">
+            <div class="position-relative">
+                <img src="{{ user_obj.photo_profile.url }}" alt="Foto Profil" class="rounded-circle border shadow"
+                    style="width: 130px; height: 130px; object-fit: cover;">
+            </div>
+
+            <div class="flex-grow-1 w-100">
+                <h5 class="fw-semibold mb-2">{{ user_obj.full_name }}
+                    <span class="badge bg-info text-dark ms-2">{{ user_obj.nim }}</span>
+                </h5>
+                <p class="mb-1 text-muted"><i class="bi bi-envelope me-2"></i>{{ user_obj.email }}</p>
+                <p class="mb-1 text-muted"><i class="bi bi-mortarboard me-2"></i>Prodi {{ user_obj.prodi.nama }}</p>
+                <p class="mb-0 text-muted"><i class="bi bi-building me-2"></i>{{ user_obj.prodi.fakultas.nama }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between flex-column flex-sm-row gap-2 mt-3">
+        <button class="btn btn-outline-primary px-4 w-100 w-sm-auto" data-bs-toggle="modal"
+            data-bs-target="#editProfileModal">
+            <i class="bi bi-pencil-square me-1"></i> Edit Profil
+        </button>
+    
+        <button class="btn btn-outline-danger px-4 w-100 w-sm-auto" data-bs-toggle="modal"
+            data-bs-target="#changePasswordModal">
+            <i class="bi bi-key me-1"></i> Ubah Password
+        </button>
+    </div>    
+</div>
+
+<!-- Modal Edit Profile -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="editProfileModalLabel"><i class="bi bi-pencil-square me-2"></i>Edit
+                        Profil</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">Nama Depan</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name"
+                            value="{{ user_obj.first_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Nama Belakang</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name"
+                            value="{{ user_obj.last_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user_obj.email }}"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="photo_profile" class="form-label">Foto Profil (Opsional)</label>
+                        <input type="file" class="form-control" id="photo_profile" name="photo_profile"
+                            accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Ubah Password -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="change_password" value="1">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="changePasswordModalLabel">
+                        <i class="bi bi-shield-lock me-2"></i>Ubah Password
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label">Password Saat Ini</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">Password Baru</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Konfirmasi Password Baru</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                            required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger">Simpan Password</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if show_password_modal %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+        modal.show();
+    });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}Hasil Pemilihan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'admin/partials/page_header.html' with header="Hasil Pemilihan" %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <!-- Dropdown Pilih Pemilihan -->
+            <form method="get" class="mb-4">
+                <div class="input-group">
+                    <select class="form-select" name="pemilihan_id" onchange="this.form.submit()">
+                        <option value="">-- Pilih Pemilihan --</option>
+                        {% for item in semua_pemilihan %}
+                        <option value="{{ item.id }}" {% if pemilihan and pemilihan.id == item.id %}selected{% endif %}>
+                            {{ item.nama }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
+            {% if pemilihan %}
+            <!-- Data Chart (Hidden in DOM) -->
+            <div id="chart-data" data-names='{{ names|safe }}' data-values='{{ values|safe }}'></div>
+
+            <!-- Deskripsi -->
+            <div class="mb-4">
+                <h5 class="fw-bold">{{ pemilihan.nama }}</h5>
+                <p class="text-muted mb-0">{{ pemilihan.deskripsi|default:"(Tidak ada deskripsi)" }}</p>
+            </div>
+
+            <!-- Statistik -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card border shadow-sm h-100 bg-light">
+                        <div class="card-body text-center">
+                            <h6>Total Pemilih</h6>
+                            <h3 class="fw-bold">{{ jumlah_pemilih }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border shadow-sm h-100 bg-light">
+                        <div class="card-body text-center">
+                            <h6>Suara Masuk</h6>
+                            <h3 class="fw-bold">{{ total_suara }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border shadow-sm h-100 bg-light">
+                        <div class="card-body text-center">
+                            <h6>Partisipasi</h6>
+                            <h3 class="fw-bold">{{ persentase_partisipasi }}%</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card border shadow-sm bg-light">
+                        <div class="card-body">
+                            <h6 class="text-center">Grafik Batang</h6>
+                            <canvas id="barChart" style="width: 100%; height: 300px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border shadow-sm bg-light">
+                        <div class="card-body">
+                            <h6 class="text-center">Grafik Lingkaran</h6>
+                            <canvas id="pieChart" style="max-height: 300px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <button class="btn btn-sm btn-dark me-2 mt-2" onclick="downloadChart('barChart')">
+                        Download Grafik Batang
+                    </button>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="downloadChart('pieChart')">
+                        Download Grafik Lingkaran
+                    </button>
+                </div>                
+            </div>
+
+            <!-- Tabel Hasil -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="mb-3">Tabel Hasil Pemilihan</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Kandidat</th>
+                                    <th>Jumlah Suara</th>
+                                    <th>Persentase</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for kandidat in suara_kandidat %}
+                                <tr>
+                                    <td>{{ kandidat.nomor_urut }}</td>
+                                    <td>
+                                        {{ kandidat.ketua.get_full_name }}
+                                        {% if kandidat.wakil %}
+                                        <br><small class="text-muted">Wakil: {{ kandidat.wakil.get_full_name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ kandidat.jumlah }}</td>
+                                    <td>{{ kandidat.persentase }}%</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Belum ada kandidat.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>                            
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Chart Script -->
+{% if pemilihan %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const chartDataEl = document.getElementById("chart-data");
+        if (!chartDataEl) return;
+
+        try {
+            const names = JSON.parse(chartDataEl.dataset.names);
+            const values = JSON.parse(chartDataEl.dataset.values);
+
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: names,
+                    datasets: [{
+                        label: 'Jumlah Suara',
+                        data: values,
+                        backgroundColor: '#000000',
+                        borderRadius: 5,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'x',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: context => `${context.raw} suara`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+
+            new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: names,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: ['#000000', '#6c757d', '#adb5bd', '#ced4da', '#dee2e6']
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        } catch (err) {
+            console.error("Gagal memuat chart:", err);
+        }
+    });
+</script>
+{% endif %}
+
+<script>
+    function downloadChart(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        const image = canvas.toDataURL("image/png");
+
+        // Buat link download
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `${canvasId}.png`;
+        link.click();
+    }
+</script>    
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login - E-Voting PEMIRA UNJAYA{% endblock %}
+
+{% block content %}
+<div class="row d-flex align-items-center justify-content-center min-vh-100 bg-light">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm p-3 border-0">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="d-flex justify-content-center align-items-center flex-wrap gap-3 mb-3">
+                        <img src="{% static 'main/img/logo_unjaya.png' %}" alt="Logo Unjaya" class="img-fluid" style="height: 100px; max-width: 100px;">
+                        <img src="{% static 'main/img/logo_kpum.png' %}" alt="Logo KPUM" class="img-fluid" style="height: 100px; max-width: 100px;">
+                        <img src="{% static 'main/img/logo_bawasra.png' %}" alt="Logo Bawaslu" class="img-fluid" style="height: 100px; max-width: 100px;">
+                    </div>
+                    <h4 class="mb-1 fw-bold">E-Voting PEMIRA UNJAYA</h2>
+                    <p class="small text-muted mb-0">Electronic Voting Pemilihan Umum Raya</p>
+                    <p class="small text-muted">Universitas Jenderal Achmad Yani Yogyakarta</p>
+                </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3 small fw-bold">
+                        <label for="nim" class="form-label">Nomor Induk Mahasiswa (NIM)</label>
+                        <input type="text" name="nim" id="nim" class="form-control rounded shadow-sm" required
+                            placeholder="Masukkan NIM">
+                    </div>
+
+                    <div class="mb-3 small fw-bold">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" name="password" id="password" class="form-control rounded shadow-sm" required
+                            placeholder="Masukkan password">
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary fw-bold">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
